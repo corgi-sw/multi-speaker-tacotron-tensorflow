@@ -1,0 +1,100 @@
+1. 쿠다쿠다
+https://yunsangq.github.io/articles/2017-02/Ubuntu-16.04(64bit),-CUDA-8.0,-cuDNN-5.1-Install
+
+
+2. 그래픽카드 라이브러리?
+https://hiseon.me/linux/ubuntu/install_nvidia_driver/
+
+
+3. cudnn 6.0
+
+
+4. git
+
+
+5. pip3
+
+
+6. git clone
+
+
+7. google stt
+https://weejw.tistory.com/49
+https://cloud.google.com/sdk/docs/downloads-apt-get?hl=ko
+https://brunch.co.kr/@sunghyunlim/24
+
+export GOOGLE_APPLICATION_CREDENTIALS=/home/haii/ume/umee-266706-f95c4f94e885.json
+source ~/.bashrc
+
+
+안될 때
+
+
+https://stackoverflow.com/questions/43558707/tensorflow-importerror-libcusolver-so-8-0-cannot-open-shared-object-file-no
+
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
+source ~/.bashrc
+
+
+
+
+python3 -m audio.silence --audio_pattern "./datasets/msw_n/audio/Raw.wav" --method=pydub
+
+
+python3 -m recognition.google --audio_pattern "./datasets/p29/audio/*.*.wav"
+
+
+python3 -m datasets.generate_data ./datasets/kjh/recognition.json
+
+
+python3 train.py --data_path="./datasets/p29"
+
+
+python3 train.py --data_path="./datasets/teacher" --initialize_path="./logs/pre_w"
+
+python3 synthesizer.py --load_path './logs/msw_2020-03-12_17-43-44' --text "개봉한 차는 밀봉하여 냉장고에 보관하십시오"
+
+----------------------------------------------------------------------------------------------
+
+
+python3 -m audio.silence_msw --path "./datasets/hsj"
+
+
+python3 -m recognition.excel_to_json --excel_path="./datasets/kjh/script.xlsx" --foldername='kjh'
+
+
+python3 train.py --data_path="./datasets/kjh" --initialize_path="./logs/pre_w"
+
+
+python3 synthesizer.py --load_path './logs/kjh'
+
+
+----------------------------------------------------------------------------------------------
+
+
+iptables -I INPUT -p tcp --dport 50000 -j ACCEPT
+
+
+----------------------------------------------------------------------------------------------
+
+1. 음성파일의 파일명이 정렬이 가능한지 확인 (날짜 혹은 0001)
+
+2. 음성파일의 개수가 스크립트의 개수와 맞는지 확인
+
+3. 대충 들어봐서 음성파일과 스크립트가 짝이 맞는지 확인
+
+4. 모든 음성파일을 파일명을 Raw.000n.wav 와 같은 꼴로 변경 (change_filename.py)
+	python3 change_filename.py --path="./datasets/msw/audio"
+
+5. 모든 음성파일의 묵음 제거 (silence_msw.py)
+	python3 -m audio.silence_msw --path="./datasets/msw"
+
+6. 엑셀파일을 .json 파일로 변경 (excel_to_json.py)
+	python3 -m recognition.excel_to_json --excel_path="./datasets/msw/script.xlsx" --foldername='msw'
+
+7. 음성파일 + .json 파일 = .npz 파일
+	python3 -m datasets.generate_data ./datasets/msw/recognition.json
+
+8. 학습 시작
+	python3 train.py --data_path="./datasets/msw" --initialize_path="./logs/pre_w"

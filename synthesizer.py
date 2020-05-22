@@ -373,7 +373,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--load_path', required=True)
     parser.add_argument('--sample_path', default="samples")
-    parser.add_argument('--text', required=True)
+    parser.add_argument('--text', required=False)
     parser.add_argument('--num_speakers', default=1, type=int)
     parser.add_argument('--speaker_id', default=0, type=int)
     parser.add_argument('--checkpoint_step', default=None, type=int)
@@ -385,8 +385,40 @@ if __name__ == "__main__":
     synthesizer = Synthesizer()
     synthesizer.load(config.load_path, config.num_speakers, config.checkpoint_step)
 
-    audio = synthesizer.synthesize(
-            texts=[config.text],
+    arr_texts = []
+    # arr_texts.append("우리를 힘들게 했던 사람을 나뭇잎에 적어 시냇물 위에 띄워보낸다")
+    # arr_texts.append("그 사람에게 받은 상처도 나뭇잎에 적어 시냇물 위에 띄워보낸다")
+    # arr_texts.append("공기가 코를 통해 들어와서 폐로 움직여 간다")
+    # arr_texts.append("부정적인 생각과 싸우는 것은 필요없는 고통을 덧붙이는 것과 같다")
+    # arr_texts.append("부정적인 마음아 어서와")
+    # arr_texts.append("너를 받아들임으로써 더 이상 너에게 얽매이지 않을거야")
+    # arr_texts.append("우리를 괴롭게 하는 마음의 말을 밀물과 함께 떠올렸다가 썰물과 함께 다시 그대로 흘려보낸다")
+    # arr_texts.append("내가 나의 목적지를 결정하며 나의 인생을 결정한다")
+
+    arr_texts.append("개봉한 차는 밀봉하여 냉장고에 보관하십시오")
+    arr_texts.append("문의사항 있으시면 언제든지 연락주세요")
+    arr_texts.append("오늘부터 내일까지 맑은 날씨가 예상됩니다")
+    arr_texts.append("차 안에 열쇠는 두고 내려주세요")
+    arr_texts.append("결제는 신용카드나 현금으로 가능합니다")
+    arr_texts.append("회의록은 내일까지 작성하겠습니다")
+    arr_texts.append("세척이 완료된 제품이라 안심하셔도 됩니다")
+    arr_texts.append("택배는 문 앞에 두고 가주세요")
+    arr_texts.append("문서 정리는 내일까지 부탁드리겠습니다")
+    arr_texts.append("맛있게 즐기는 방법은 다음과 같습니다")
+    arr_texts.append("식사 하기 전 손 세정제 사용을 부탁드립니다")
+    arr_texts.append("비행 시간이 계속해서 지연되고 있습니다")
+    arr_texts.append("버스에서 하차 시 교통카드를 찍어주세요")
+    arr_texts.append("티켓 현장 수령 시 신분증을 지참해주세요")
+    arr_texts.append("아동 및 청소년은 입장 불가합니다")
+    arr_texts.append("일정이 확정되는 대로 다시 안내 드리겠습니다")
+    arr_texts.append("귀중품은 분실위험이 있으니 개인 보관해주세요")
+    arr_texts.append("마케팅 팀에서는 여러 매체의 홍보를 담당합니다")
+    arr_texts.append("발표 시간을 준수하여 주시기 바랍니다")
+    arr_texts.append("홈페이지에 접속하여 회원가입 부탁드립니다")
+
+    for t in arr_texts:
+        audio = synthesizer.synthesize(
+            texts=[t],
             base_path=config.sample_path,
             speaker_ids=[config.speaker_id],
             attention_trim=False,
