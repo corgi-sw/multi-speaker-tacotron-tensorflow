@@ -1,5 +1,3 @@
-#!flask/bin/python
-# -*- coding: cp949 -*-
 import os, traceback
 import hashlib
 import argparse
@@ -9,130 +7,74 @@ from flask import Flask, request, render_template, jsonify, \
 
 from hparams import hparams
 from audio import load_audio
-from synthesizer import Synthesizer
 from utils import str2bool, prepare_dirs, makedirs, add_postfix
 
-ROOT_PATH = "web"
-AUDIO_DIR = "audio"
-AUDIO_PATH = os.path.join(ROOT_PATH, AUDIO_DIR)
+import requests
 
-base_path = os.path.dirname(os.path.realpath(__file__))
-static_path = os.path.join(base_path, 'web/static')
+from werkzeug.datastructures import ImmutableMultiDict
 
-global_config = None
-synthesizer = Synthesizer()
-app = Flask(__name__, root_path=ROOT_PATH, static_url_path='')
+import threading
+import train
+import eq
+
+app = Flask(__name__, root_path="", static_url_path='/static_folder', static_folder='static_folder')
 CORS(app)
 
-
-def match_target_amplitude(sound, target_dBFS):
-   change_in_dBFS = target_dBFS - sound.dBFS
-   return sound.apply_gain(change_in_dBFS)
-
-def amplify(path, keep_silence=300):
-    sound = AudioSegment.from_file(path)
-
-    nonsilent_ranges = pydub.silence.detect_nonsilent(
-            sound, silence_thresh=-50, min_silence_len=300)
-
-    new_sound = None
-    for idx, (start_i, end_i) in enumerate(nonsilent_ranges):
-        if idx == len(nonsilent_ranges) - 1:
-            end_i = None
-
-        amplified_sound = \
-                match_target_amplitude(sound[start_i:end_i], -20.0)
-
-        if idx == 0:
-            new_sound = amplified_sound
-        else:
-            new_sound = new_sound.append(amplified_sound)
-
-        if idx < len(nonsilent_ranges) - 1:
-            new_sound = new_sound.append(sound[end_i:nonsilent_ranges[idx+1][0]])
-
-    return new_sound.export("out.mp3", format="mp3")
-
-def generate_audio_response(text, speaker_id):
-    global global_config
-
-    model_name = os.path.basename(global_config.load_path)
-    isKorean=global_config.is_korean
-    
-    hashed_text = hashlib.md5(text.encode('utf-8')).hexdigest()
-
-    relative_dir_path = os.path.join(AUDIO_DIR, model_name)
-    relative_audio_path = os.path.join(
-            relative_dir_path, "{}.{}.wav".format(hashed_text, speaker_id))
-    real_path = os.path.join(ROOT_PATH, relative_audio_path)
-    makedirs(os.path.dirname(real_path))
-
-    if not os.path.exists(add_postfix(real_path, 0)):
-        try:
-            audio = synthesizer.synthesize(
-                    [text], paths=[real_path], speaker_ids=[speaker_id],
-                    attention_trim=True, isKorean=isKorean)[0]
-        except Exception as e:
-            traceback.print_exc()
-            return jsonify(success=False), 400
-
-    return send_file(
-            add_postfix(relative_audio_path, 0),
-            mimetype="audio/wav", 
-            as_attachment=True, 
-            attachment_filename=hashed_text + ".wav")
-
-    response = make_response(audio)
-    response.headers['Content-Type'] = 'audio/wav'
-    response.headers['Content-Disposition'] = 'attachment; filename=sound.wav'
-    return response
-
-@app.route('/')
+@app.route('/', methods = ['POST', 'GET'])
 def index():
-    text = request.args.get('text') or "듣고 싶은 문장을 입력해 주세요."
-    return render_template('index.html', text=text)
+    return "flask"
 
-@app.route('/generate')
-def view_method():
-    text = request.args.get('text')
-    speaker_id = int(request.args.get('speaker_id'))
+@app.route('/train', methods = ['POST', 'GET'])
+def _train():
 
-    if text:
-        return generate_audio_response(text, speaker_id)
-    else:
-        return {}
+    print(request.json['userID'])
+    userID = request.json['userID']
+    t = threading.Thread(target=msw_train, args=(userID, ))
+    t.start()
 
-@app.route('/js/<path:path>')
-def send_js(path):
-    return send_from_directory(
-            os.path.join(static_path, 'js'), path)
+    return request.json['userID'] + ' train start'
 
-@app.route('/css/<path:path>')
-def send_css(path):
-    return send_from_directory(
-            os.path.join(static_path, 'css'), path)
+@app.route('/set_effect', methods = ['POST', 'GET'])
+def _set_effect():
 
-@app.route('/audio/<path:path>')
-def send_audio(path):
-    return send_from_directory(
-            os.path.join(static_path, 'audio'), path)
+    print(request.form['fileName'])
+    print(request.form['fileTime'])
 
-if __name__ == '__main__':
+    static_folder = os.getcwd() + "/static_folder/"
+
+    file = request.files['data']
+    fileName = static_folder + request.form['fileName']
+    file.save(fileName + ".wav")
+    print(fileName + ".wav")
+
+    eq.set_effect(1, fileName)
+    eq.set_effect(2, fileName)
+    eq.set_effect(3, fileName)
+
+    return "effect"
+
+def msw_train(userID):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_path', required=True)
-    parser.add_argument('--checkpoint_step', default=None, type=int)
-    parser.add_argument('--num_speakers', default=1, type=int)
-    parser.add_argument('--port', default=51000, type=int)
-    parser.add_argument('--debug', default=False, type=str2bool)
-    parser.add_argument('--is_korean', default=True, type=str2bool)
     config = parser.parse_args()
 
-    if os.path.exists(config.load_path):
-        prepare_dirs(config, hparams)
+    config.log_dir = 'logs'
+    config.data_paths = './datasets/msw'
+    config.load_path = None
+    config.initialize_path = './logs/pre_m'
 
-        global_config = config
-        synthesizer.load(config.load_path, config.num_speakers, config.checkpoint_step)
-    else:
-        print(" [!] load_path not found: {}".format(config.load_path))
+    config.num_test_per_speaker = int(2)
+    config.random_seed = int(123)
+    config.summary_interval = int(100)
+    config.test_interval = int(1000)
+    config.checkpoint_interval = int(1000)
+    config.skip_path_filter = False
 
-    app.run(host='0.0.0.0', port=config.port, debug=config.debug)
+    config.slack_url = None
+    config.git = False
+
+    train.msw_train(config)
+
+    requests.get("http://127.0.0.1:40000/train_complete?result=" + userID + " train complete")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=50000, debug=False)
